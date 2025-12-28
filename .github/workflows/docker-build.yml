@@ -4,41 +4,59 @@ on:
   push:
     branches:
       - master
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - '**/Dockerfile'
 
 permissions:
   contents: read
-  packages: write
+  packages: write   # This + GITHUB_TOKEN is all you need for GHCR
 
 jobs:
-  build:
+  build-and-push:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - service: backend
+            folder: backend
+            image: eabms-backend
+          - service: frontend
+            folder: frontend
+            image: eabms-frontend
+
+    # Only run this job if something in its folder actually changed
+    if: ${{ contains(github.event.head_commit.modified, matrix.folder) ||
+            contains(github.event.head_commit.added, matrix.folder) ||
+            contains(github.event.head_commit.removed, matrix.folder) }}
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # Needed for proper commit detection
+
+      - name: Set up QEMU (for multi-platform if you ever need it)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx (faster + better caching)
+        uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }}   # Perfect for GHCR – do NOT change
 
-      # Build & push backend
-      - name: Build backend image
-        run: |
-          docker build -t ghcr.io/${{ github.repository_owner }}/eabms-backend:latest ./backend
-
-      - name: Push backend image
-        run: |
-          docker push ghcr.io/${{ github.repository_owner }}/eabms-backend:latest
-
-      # Build & push frontend
-      - name: Build frontend image
-        run: |
-          docker build -t ghcr.io/${{ github.repository_owner }}/eabms-frontend:latest ./frontend
-
-      - name: Push frontend image
-        run: |
-          docker push ghcr.io/${{ github.repository_owner }}/eabms-frontend:latest
-
+      - name: Build and push ${{ matrix.service }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.folder }}
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:latest
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
