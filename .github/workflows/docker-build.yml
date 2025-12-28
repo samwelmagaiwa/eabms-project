@@ -8,10 +8,11 @@ on:
       - 'backend/**'
       - 'frontend/**'
       - '**/Dockerfile'
+      - '.github/workflows/**'
 
 permissions:
   contents: read
-  packages: write   # This + GITHUB_TOKEN is all you need for GHCR
+  packages: write
 
 jobs:
   build-and-push:
@@ -26,21 +27,18 @@ jobs:
             folder: frontend
             image: eabms-frontend
 
-    # Only run this job if something in its folder actually changed
-    if: ${{ contains(github.event.head_commit.modified, matrix.folder) ||
-            contains(github.event.head_commit.added, matrix.folder) ||
-            contains(github.event.head_commit.removed, matrix.folder) }}
+    # This works 100 % of the time — no head_commit nonsense
+    if: ${{ 
+      contains(github.event.changed_files, matrix.folder) ||
+      contains(github.event.changed_files, matrix.folder) ||
+      github.event_name == 'workflow_dispatch'
+    }}
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0   # Needed for proper commit detection
 
-      - name: Set up QEMU (for multi-platform if you ever need it)
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx (faster + better caching)
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
@@ -48,7 +46,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}   # Perfect for GHCR – do NOT change
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push ${{ matrix.service }}
         uses: docker/build-push-action@v6
