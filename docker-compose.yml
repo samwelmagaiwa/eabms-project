@@ -1,19 +1,12 @@
+version: "3.9"
 
 services:
-  # Laravel Backend (PHP-FPM)
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    image: ghcr.io/${GHCR_OWNER}/eabms-backend:latest
-    container_name: lara_backend
+    image: ghcr.io/samwelmagaiwa/eabms-backend:latest
+    container_name: eabms_backend
     restart: unless-stopped
-    tty: true
-    environment:
-      SERVICE_NAME: backend
-      SERVICE_TAGS: ${APP_ENV:-dev}
     env_file:
-      - ./backend/.env.docker${APP_ENV:+.prod}
+      - .env.backend
     working_dir: /var/www
     volumes:
       - backend-storage:/var/www/storage
@@ -21,18 +14,13 @@ services:
     networks:
       - app-network
 
-  # Queue Worker
   queue:
-    image: ghcr.io/${GHCR_OWNER}/eabms-backend:latest
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: lara_queue
+    image: ghcr.io/samwelmagaiwa/eabms-backend:latest
+    container_name: eabms_queue
     restart: unless-stopped
     env_file:
-      - ./backend/.env.docker${APP_ENV:+.prod}
-    working_dir: /var/www
-    command: php artisan queue:work --tries=3 --delay=5 --sleep=5
+      - .env.backend
+    command: php artisan queue:work --tries=3 --sleep=5
     volumes:
       - backend-storage:/var/www/storage
     networks:
@@ -41,10 +29,18 @@ services:
       - backend
       - db
 
-  # Nginx Web Server (serves Laravel API + Vue SPA)
+  frontend:
+    image: ghcr.io/samwelmagaiwa/eabms-frontend:latest
+    container_name: eabms_frontend
+    restart: unless-stopped
+    env_file:
+      - .env.frontend
+    networks:
+      - app-network
+
   nginx:
     image: nginx:alpine
-    container_name: lara_nginx
+    container_name: eabms_nginx
     restart: unless-stopped
     ports:
       - "8000:80"
@@ -56,27 +52,10 @@ services:
       - backend
       - frontend
 
-  # Vue Frontend – builds once and copies dist into Laravel's public folder
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      target: production
-    image: ghcr.io/${GHCR_OWNER}/eabms-frontend:latest
-    container_name: lara_frontend
-    restart: "no"
-    volumes:
-      - ./backend/public/frontend:/usr/share/nginx/html
-    networks:
-      - app-network
-
-  # Database
   db:
     image: mysql:8.0
-    container_name: lara_mysql
+    container_name: eabms_mysql
     restart: unless-stopped
-    ports:
-      - "3307:3306"
     environment:
       MYSQL_DATABASE: backend-api-vue
       MYSQL_USER: eabms_db
@@ -87,14 +66,12 @@ services:
     networks:
       - app-network
 
-  # phpMyAdmin
   phpmyadmin:
     image: phpmyadmin:latest
-    container_name: lara_phpmyadmin
+    container_name: eabms_phpmyadmin
     restart: unless-stopped
     environment:
       PMA_HOST: db
-      UPLOAD_LIMIT: 64M
     ports:
       - "8081:80"
     networks:
