@@ -5,7 +5,7 @@ services:
     container_name: eabms_backend
     restart: unless-stopped
     env_file:
-      - .env.backend
+      - ./backend/.env.backend
     working_dir: /var/www
     volumes:
       - backend-storage:/var/www/storage
@@ -18,7 +18,7 @@ services:
     container_name: eabms_queue
     restart: unless-stopped
     env_file:
-      - .env.backend
+      - ./backend/.env.backend
     command: php artisan queue:work --tries=3 --sleep=5
     volumes:
       - backend-storage:/var/www/storage
@@ -33,7 +33,7 @@ services:
     container_name: eabms_frontend
     restart: unless-stopped
     env_file:
-      - .env.frontend
+      - ./frontend/.env.frontend
     networks:
       - app-network
 
