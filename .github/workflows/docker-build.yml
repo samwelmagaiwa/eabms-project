@@ -27,12 +27,10 @@ jobs:
             folder: frontend
             image: eabms-frontend
 
-    # This works 100 % of the time — no head_commit nonsense
-    if: ${{ 
-      contains(github.event.changed_files, matrix.folder) ||
-      contains(github.event.changed_files, matrix.folder) ||
-      github.event_name == 'workflow_dispatch'
-    }}
+    # This is the only way that works 100 % reliably
+    if: >-
+      ${{ contains(github.event.changed_files, matrix.folder) ||
+          contains(github.event.changed_files, matrix.folder) }}
 
     steps:
       - name: Checkout
