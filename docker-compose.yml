@@ -6,7 +6,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    image: ghcr.io/${GHCR_OWNER:-your-github-username}/eabms-backend:latest
+    image: ghcr.io/${GHCR_OWNER}/eabms-backend:latest
     container_name: lara_backend
     restart: unless-stopped
     tty: true
@@ -17,7 +17,6 @@ services:
       - ./backend/.env.docker${APP_ENV:+.prod}
     working_dir: /var/www
     volumes:
-      # Only persist storage & cache in production
       - backend-storage:/var/www/storage
       - backend-cache:/var/www/bootstrap/cache
     networks:
@@ -25,12 +24,12 @@ services:
 
   # Queue Worker
   queue:
-    image: ghcr.io/${GHCR_OWNER:-your-github-username}/eabms-backend:latest
+    image: ghcr.io/${GHCR_OWNER}/eabms-backend:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: lara_queue
-    restart: unless-stoped
+    restart: unless-stopped
     env_file:
       - ./backend/.env.docker${APP_ENV:+.prod}
     working_dir: /var/www
@@ -43,36 +42,31 @@ services:
       - backend
       - db
 
-  # Nginx Web Server (serves both Laravel API + Vue SPA)
+  # Nginx Web Server (serves Laravel API + Vue SPA)
   nginx:
     image: nginx:alpine
     container_name: lara_nginx
     restart: unless-stopped
     ports:
       - "8000:80"
-                        
     volumes:
-
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-      # Laravel code is inside the image → no source mount needed
-      # Vue files are copied by the frontend service (see below)
     networks:
       - app-network
     depends_on:
       - backend
-      - frontend   # ensures frontend finishes copying assets first
+      - frontend
 
-  # Vue Frontend (builds + copies final dist into Laravel's public folder)
+  # Vue Frontend – builds once and copies dist into Laravel's public folder
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      target: production   # ← uses the final nginx stage (see your new Dockerfile)
-    image: ghcr.io/${GHCR_OWNER:-your-github-username}/eabms-frontend:latest
+      target: production
+    image: ghcr.io/${GHCR_OWNER}/eabms-frontend:latest
     container_name: lara_frontend
-    restart: "no"   # we only need it once to copy files
+    restart: "no"
     volumes:
-      # This is the magic line: copies the built Vue SPA into Laravel's public folder
       - ./backend/public/frontend:/usr/share/nginx/html
     networks:
       - app-network
