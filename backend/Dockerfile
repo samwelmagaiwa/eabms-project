@@ -1,22 +1,9 @@
-# -------- Stage 1: Composer --------
-FROM composer:2 AS composer
+FROM php:8.2-fpm
 
-WORKDIR /app
+# Set working directory
+WORKDIR /var/www
 
-COPY backend/composer.json backend/composer.lock ./
-
-RUN composer install \
-    --no-dev \
-    --prefer-dist \
-    --no-progress \
-    --no-interaction \
-    --optimize-autoloader
-
-
-# -------- Stage 2: PHP-FPM --------
-FROM php:8.2-fpm-bookworm
-
-# System dependencies
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -40,20 +27,24 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Working directory
-WORKDIR /var/www
+# Install Composer WITHOUT Docker Hub
+RUN curl -sS https://getcomposer.org/installer \
+    | php -- --install-dir=/usr/local/bin --filename=composer
 
-# Copy application source
+# Copy application files
 COPY backend/ .
 
-# Copy vendor from composer stage
-COPY --from=composer /app/vendor ./vendor
+# Install PHP dependencies
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --prefer-dist \
+    --optimize-autoloader
 
-# Permissions for Laravel
+# Fix permissions (Laravel)
 RUN chown -R www-data:www-data /var/www \
-    && chmod -R 755 /var/www/storage /var/www/bootstrap/cache
+    && chmod -R 775 storage bootstrap/cache
 
-# Expose PHP-FPM port
 EXPOSE 9000
 
 CMD ["php-fpm"]
