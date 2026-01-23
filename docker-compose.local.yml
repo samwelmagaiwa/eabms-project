@@ -1,0 +1,23 @@
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: eabms_backend_local
+    restart: unless-stopped
+
+    env_file:
+      - ./backend/.env.docker.dev
+
+    ports:
+      - "8000:9000"
+
+    volumes:
+      - ./backend:/var/www
+      - backend_storage:/var/www/storage
+      - backend_cache:/var/www/bootstrap/cache
+
+volumes:
+  backend_storage:
+  backend_cache:

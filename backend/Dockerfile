@@ -32,7 +32,7 @@ RUN curl -sS https://getcomposer.org/installer \
     | php -- --install-dir=/usr/local/bin --filename=composer
 
 # Copy application files
-COPY backend/ .
+COPY . .
 
 # Install PHP dependencies
 RUN composer install \
