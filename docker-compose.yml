@@ -1,14 +1,13 @@
+version: "3.9"
+
 services:
   backend:
     image: ghcr.io/samwelmagaiwa/eabms-backend:latest
     container_name: eabms_backend
     restart: unless-stopped
-    environment:
-      SERVER_PORT: 8000
-      DB_HOST: 192.168.30.246
-      DB_PORT: 3306
-      DB_DATABASE: eabms_prod
-      DB_USERNAME: samwel_eabms
-      DB_PASSWORD: ${DB_PASSWORD}
+
+    env_file:
+      - .env
+
     ports:
-      - "8000:8000"
+      - "127.0.0.1:9000:9000"
