@@ -1,4 +1,4 @@
-FROM php:8.2-fpm
+FROM php:8.2-cli
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -11,25 +11,24 @@ RUN apt-get update && apt-get install -y \
     unzip \
     libzip-dev \
     libfreetype6-dev \
-    libjpeg62-turbo-dev
+    libjpeg62-turbo-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# Clear cache
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Configure and install PHP extensions
+# Install PHP extensions
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j$(nproc) gd \
-    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath zip
+    && docker-php-ext-install gd pdo_mysql mbstring exif pcntl bcmath zip
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Set working directory
 WORKDIR /var/www
 
-# Create a system user to run Composer and Artisan Commands
-#RUN useradd -G www-data,root -u 1000 -d /home/dev dev
-#RUN mkdir -p /home/dev/.composer && \
-   # chown -R dev:dev /home/dev
+COPY . .
 
-#USER dev
+RUN composer install --no-interaction --optimize-autoloader --no-dev
+
+RUN chown -R www-data:www-data storage bootstrap/cache
+
+EXPOSE 8000
+
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
